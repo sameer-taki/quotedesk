@@ -1,5 +1,5 @@
 # Build Stage
-FROM node:18-slim as build
+FROM node:18-bullseye-slim as build
 
 WORKDIR /app
 
