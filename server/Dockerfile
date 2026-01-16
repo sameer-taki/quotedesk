@@ -7,9 +7,6 @@ COPY package*.json ./
 # Startup script to install deps at runtime (bypasses build-time security locks)
 COPY . .
 
-# Create data directory for SQLite
-RUN mkdir -p data
-
 EXPOSE 5000
 
-CMD ["sh", "-c", "npm ci --only=production && npm start"]
+CMD ["sh", "-c", "mkdir -p data && npm ci --only=production && npm start"]
