@@ -1,20 +1,8 @@
-# Build Stage
-FROM node:16-buster-slim as build
-
-WORKDIR /app
-
-COPY package*.json ./
-
-RUN npm ci
-
-COPY . .
-
-RUN npm run build
-
-# Production Stage
+# Production Stage (Serve Pre-built Assets)
 FROM nginx:1.23-alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
+# Copy local build artifacts directly
+COPY dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
