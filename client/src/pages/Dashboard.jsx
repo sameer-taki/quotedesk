@@ -130,14 +130,14 @@ const Dashboard = () => {
             {/* Stats Cards */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} md={3}>
-                    <Card>
+                    <Card className="hover-lift stat-card-purple">
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+                                <Box className="icon-container">
                                     <QuoteIcon />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h4" fontWeight={700}>{stats.total}</Typography>
+                                    <Typography variant="h4" fontWeight={800}>{stats.total}</Typography>
                                     <Typography variant="body2" color="text.secondary">Total Quotes</Typography>
                                 </Box>
                             </Box>
@@ -146,14 +146,14 @@ const Dashboard = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6} md={3}>
-                    <Card>
+                    <Card className="hover-lift stat-card-coral">
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'warning.light', color: 'common.white' }}>
+                                <Box className="icon-container coral">
                                     <PendingIcon />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h4" fontWeight={700}>{stats.pending}</Typography>
+                                    <Typography variant="h4" fontWeight={800}>{stats.pending}</Typography>
                                     <Typography variant="body2" color="text.secondary">Pending Approval</Typography>
                                 </Box>
                             </Box>
@@ -162,14 +162,14 @@ const Dashboard = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6} md={3}>
-                    <Card>
+                    <Card className="hover-lift stat-card-green">
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'success.light', color: 'common.white' }}>
+                                <Box className="icon-container green">
                                     <ApprovedIcon />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h4" fontWeight={700}>{stats.approved}</Typography>
+                                    <Typography variant="h4" fontWeight={800}>{stats.approved}</Typography>
                                     <Typography variant="body2" color="text.secondary">Approved</Typography>
                                 </Box>
                             </Box>
@@ -178,14 +178,14 @@ const Dashboard = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6} md={3}>
-                    <Card>
+                    <Card className="hover-lift stat-card-teal">
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'secondary.light', color: 'secondary.contrastText' }}>
+                                <Box className="icon-container teal">
                                     <TrendingIcon />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h5" fontWeight={700}>
+                                    <Typography variant="h5" fontWeight={800}>
                                         {formatCurrency(stats.totalRevenue)}
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary">Approved Value</Typography>
