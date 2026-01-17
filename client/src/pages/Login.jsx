@@ -168,18 +168,7 @@ const Login = () => {
                         </Button>
                     </form>
 
-                    {/* Demo credentials hint */}
-                    <Box sx={{ mt: 4, p: 2, bgcolor: (theme) => theme.palette.mode === 'light' ? 'grey.50' : 'rgba(255, 255, 255, 0.05)', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                            Demo Accounts:
-                        </Typography>
-                        <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace' }}>
-                            admin@kastel.local / admin123
-                        </Typography>
-                        <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace' }}>
-                            creator@kastel.local / creator123
-                        </Typography>
-                    </Box>
+
                 </CardContent>
             </Card>
         </Box>
