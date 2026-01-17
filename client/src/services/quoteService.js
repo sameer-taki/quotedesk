@@ -131,6 +131,11 @@ export const refreshFxRates = async () => {
     return response.data;
 };
 
+export const deleteFxRate = async (currency) => {
+    const response = await api.delete(`/fx-rates/${currency}`);
+    return response.data;
+};
+
 export const getSettings = async () => {
     const response = await api.get('/settings');
     return response.data;

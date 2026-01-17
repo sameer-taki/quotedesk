@@ -62,6 +62,11 @@ router.post('/fx-rates/refresh',
     adminController.refreshFxRates
 );
 
+router.delete('/fx-rates/:currency',
+    authorize('admin'),
+    adminController.deleteFxRate
+);
+
 // ============================================
 // Settings (read for all, write for admin)
 // ============================================

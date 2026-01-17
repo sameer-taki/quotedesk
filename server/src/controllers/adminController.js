@@ -197,6 +197,26 @@ export const refreshFxRates = asyncHandler(async (req, res) => {
     });
 });
 
+export const deleteFxRate = asyncHandler(async (req, res) => {
+    const { currency } = req.params;
+
+    const rate = await FxRate.findOne({ where: { currency } });
+    if (!rate) {
+        return res.status(404).json({
+            success: false,
+            message: 'FX rate not found',
+        });
+    }
+
+    await rate.destroy();
+    await createAuditLog(req.user.id, 'delete', 'fx_rate', null, { currency }, req);
+
+    res.json({
+        success: true,
+        message: `FX rate for ${currency} deleted successfully`,
+    });
+});
+
 // ============================================
 // Settings
 // ============================================
@@ -261,7 +281,7 @@ export const listUsers = asyncHandler(async (req, res) => {
 });
 
 export const createUser = asyncHandler(async (req, res) => {
-    const { email, name, role } = req.body;
+    const { email, name, role, password } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
 
     try {
@@ -270,7 +290,46 @@ export const createUser = asyncHandler(async (req, res) => {
             where: { email: normalizedEmail }
         });
 
-        // Generate invitation token
+        // If password is provided, create user immediately as active
+        if (password) {
+            const passwordHash = await bcrypt.hash(password, 12);
+
+            if (user) {
+                // Update existing user
+                await user.update({
+                    name,
+                    role,
+                    passwordHash,
+                    isActive: true,
+                    invitationToken: null,
+                    invitationExpires: null
+                });
+            } else {
+                // Create new active user
+                user = await User.create({
+                    email: normalizedEmail,
+                    name,
+                    role,
+                    passwordHash,
+                    isActive: true
+                });
+            }
+
+            await createAuditLog(req.user.id, 'create', 'user', user.id, { email: normalizedEmail, name, role }, req);
+
+            return res.status(201).json({
+                success: true,
+                message: 'User created successfully',
+                data: {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    role: user.role,
+                },
+            });
+        }
+
+        // No password provided - send invitation email
         const invitationToken = crypto.randomBytes(32).toString('hex');
         const invitationExpires = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // 48 hours
 
@@ -491,6 +550,7 @@ export default {
     listFxRates,
     updateFxRate,
     refreshFxRates,
+    deleteFxRate,
     // Settings
     getSettings,
     updateSettings,

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
     getSuppliers, createSupplier, updateSupplier,
     getCategories, createCategory, updateCategory,
-    getFxRates, updateFxRate, refreshFxRates,
+    getFxRates, updateFxRate, refreshFxRates, deleteFxRate,
     getSettings, updateSettings,
     getUsers, adminCreateUser, adminDeleteUser, purgeUsers
 } from '../services/quoteService';
@@ -155,6 +155,17 @@ const AdminPanel = () => {
             alert(error.response?.data?.message || 'Purge failed');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteFxRate = async (currency) => {
+        if (!window.confirm(`Are you sure you want to delete the FX rate for ${currency}?`)) return;
+        try {
+            await deleteFxRate(currency);
+            loadData();
+        } catch (error) {
+            console.error('Delete FX rate failed:', error);
+            alert(error.response?.data?.message || 'Failed to delete FX rate');
         }
     };
 
@@ -436,6 +447,9 @@ const AdminPanel = () => {
                                                 <IconButton onClick={() => setDialog({ open: true, type: 'fxrate', data: rate })}>
                                                     <EditIcon />
                                                 </IconButton>
+                                                <IconButton onClick={() => handleDeleteFxRate(rate.currency)} color="error">
+                                                    <DeleteIcon />
+                                                </IconButton>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -567,6 +581,16 @@ const AdminPanel = () => {
                                         </Select>
                                     </FormControl>
                                 </Grid>
+                                <Grid item xs={12}>
+                                    <TextField
+                                        fullWidth
+                                        label="Password (Optional)"
+                                        type="password"
+                                        value={dialog.data?.password || ''}
+                                        onChange={(e) => setDialog({ ...dialog, data: { ...dialog.data, password: e.target.value } })}
+                                        helperText="Set a password to activate user immediately, or leave blank to send invitation email"
+                                    />
+                                </Grid>
                             </Grid>
                         )}
 
@@ -680,7 +704,7 @@ const AdminPanel = () => {
                 <DialogActions>
                     <Button onClick={() => setDialog({ open: false, type: null, data: null })}>Cancel</Button>
                     <Button variant="contained" onClick={handleSave} disabled={submitting}>
-                        {submitting ? 'Saving...' : (dialog.type === 'user' ? 'Send Invitation' : 'Save')}
+                        {submitting ? 'Saving...' : (dialog.type === 'user' ? (dialog.data?.password ? 'Create User' : 'Send Invitation') : 'Save')}
                     </Button>
                 </DialogActions>
             </Dialog>
