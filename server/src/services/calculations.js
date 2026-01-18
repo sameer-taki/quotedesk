@@ -41,16 +41,15 @@ export const calculateLine = (line, vatRate = 0.125) => {
     if (!buyPrice || buyPrice < 0) {
         throw new Error('Buy price must be a positive number');
     }
-    if (!exchangeRate || exchangeRate <= 0) {
-        throw new Error('Exchange rate must be a positive number');
-    }
+    // If exchange rate is 0 or not set, treat as 1 (no conversion)
+    const effectiveExchangeRate = (!exchangeRate || exchangeRate <= 0) ? 1 : exchangeRate;
     if (quantity < 1) {
         throw new Error('Quantity must be at least 1');
     }
 
     // Calculate intermediate values
     const freightMultiplier = 1 + freightRate;
-    const fxMultiplier = exchangeRate; // Already Base per FX (FJD per Currency)
+    const fxMultiplier = effectiveExchangeRate; // Already Base per FX (FJD per Currency)
     const dutyMultiplier = 1 + dutyRate;
     const handlingMultiplier = 1 + handlingRate;
 

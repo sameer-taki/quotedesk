@@ -18,13 +18,16 @@ export const calculateLine = (line, vatRate = 0.125) => {
         overrideMarkupPercent = null,
     } = line;
 
-    if (!buyPrice || !exchangeRate) {
+    if (!buyPrice) {
         return null;
     }
 
+    // If exchange rate is 0 or not set, treat as 1 (no conversion)
+    const effectiveExchangeRate = (!exchangeRate || exchangeRate <= 0) ? 1 : exchangeRate;
+
     // Calculate landed cost
     const freightMultiplier = 1 + freightRate;
-    const fxMultiplier = exchangeRate;
+    const fxMultiplier = effectiveExchangeRate;
     const dutyMultiplier = 1 + dutyRate;
     const handlingMultiplier = 1 + handlingRate;
 

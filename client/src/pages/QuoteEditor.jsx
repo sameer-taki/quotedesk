@@ -242,6 +242,7 @@ const QuoteEditor = () => {
         const defaultFx = fxRates.find(r => r.currency === 'NZD');
 
         const newLines = parsedLines.map((line, idx) => {
+            // Use the values from the parsed Excel, falling back to sensible defaults
             const baseLine = {
                 id: `import-${Date.now()}-${idx}`,
                 description: line.description,
@@ -251,11 +252,12 @@ const QuoteEditor = () => {
                 quantity: line.quantity || 1,
                 buyPrice: line.buyPrice || 0,
                 currency: line.currency || 'NZD',
-                freightRate: 0.05,
-                exchangeRate: line.exchangeRate || defaultFx?.rateToBase || 1.39,
-                dutyRate: 0.05,
-                handlingRate: 0.02,
-                targetMarkupPercent: 0.25,
+                // Use parsed values if available, otherwise use 0 (user can adjust later)
+                freightRate: line.freightRate ?? 0,
+                exchangeRate: line.exchangeRate || defaultFx?.rateToBase || 1,
+                dutyRate: line.dutyRate ?? 0,
+                handlingRate: line.handlingRate ?? 0,
+                targetMarkupPercent: line.targetMarkupPercent ?? 0.25,
                 overrideMarkupPercent: null,
             };
             const calcs = calculateLine(baseLine, vatRate);
