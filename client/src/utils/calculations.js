@@ -30,51 +30,61 @@ export const calculateLine = (line, vatRate = 0.125) => {
     }
 
     // If exchange rate is 0 or not set, treat as 1 (no conversion)
-    const effectiveExchangeRate = (!exchangeRate || exchangeRate <= 0) ? 1 : exchangeRate;
+    // We treat exchangeRate as "Foreign per 1 FJD" (e.g. 0.45 USD/FJD)
+    const divisor = (!exchangeRate || exchangeRate <= 0) ? 1 : exchangeRate;
 
-    // Step 1: Convert to base currency (FJD)
-    const unitCostFjd = buyPrice * effectiveExchangeRate;
+    // 1. Unit Cost (FJD)
+    const unitCostFjd = buyPrice * (1 / divisor);
 
-    // Step 2: Calculate shipping (additive)
-    const freightAmount = unitCostFjd * freightRate;
+    // 2. Multiplicative Landed Cost
+    const landedCost = unitCostFjd *
+        (1 + (freightRate || 0)) *
+        (1 + (dutyRate || 0)) *
+        (1 + (line.handlingRate || 0)); // Note: handlingRate is sometimes on the line
 
-    // Step 3: Calculate duty on (unit + shipping)
-    const dutyAmount = (unitCostFjd + freightAmount) * dutyRate;
-
-    // Step 4: Landed Cost = Unit + Ship + Duty
-    const landedCost = unitCostFjd + freightAmount + dutyAmount;
-
-    // Determine margin percentage (this is gross margin, not markup)
-    const marginPercent = overrideMarkupPercent !== null && overrideMarkupPercent !== undefined
+    // 3. Markup-based Selling Price
+    const markupPercent = overrideMarkupPercent !== null && overrideMarkupPercent !== undefined
         ? overrideMarkupPercent
-        : targetMarkupPercent;
+        : (targetMarkupPercent || 0);
 
-    // Step 5: Sell Ex VAT = Landed / (1 - GM%)
-    // Prevent division by zero if margin is 100%
-    const effectiveMargin = marginPercent >= 1 ? 0.99 : marginPercent;
-    const unitSellExVat = landedCost / (1 - effectiveMargin);
+    const unitSellExVat = landedCost * (1 + markupPercent);
 
-    // Calculate markup amount for reporting
+    // 4. VAT and Totals
+    const unitVat = unitSellExVat * vatRate;
+    const unitSellIncVat = unitSellExVat + unitVat;
+
+    const lineTotalExVat = unitSellExVat * quantity;
+    const lineTotalVat = unitVat * quantity;
+    const lineTotalIncVat = unitSellIncVat * quantity;
+    const totalLandedCost = landedCost * quantity;
+
+    // Gross Margin % (for reporting)
+    const marginAmount = unitSellExVat - landedCost;
+    const gmPercent = unitSellExVat > 0 ? marginAmount / unitSellExVat : 0;
+
+    // Derived amounts for UI
+    const freightAmount = unitCostFjd * (freightRate || 0);
+    const dutyAmount = (unitCostFjd * (1 + (freightRate || 0))) * (dutyRate || 0);
+    const handlingAmount = (unitCostFjd * (1 + (freightRate || 0)) * (1 + (dutyRate || 0))) * (line.handlingRate || 0);
     const markupAmount = unitSellExVat - landedCost;
 
-    // Step 6: Line totals
-    const lineTotalExVat = unitSellExVat * quantity;
-
-    // Step 7: VAT calculation
-    const vatAmount = lineTotalExVat * vatRate;
-    const lineTotalIncVat = lineTotalExVat + vatAmount;
-
     return {
+        unitCostFjd: round(unitCostFjd, 4),
+        landedCost: round(landedCost, 4),
+        unitSellExVat: round(unitSellExVat, 4),
+        unitVat: round(unitVat, 4),
+        unitSellIncVat: round(unitSellIncVat, 4),
+        lineTotalExVat: round(lineTotalExVat, 2),
+        vatAmount: round(lineTotalVat, 2), // Legacy alias
+        lineTotalVat: round(lineTotalVat, 2),
+        lineTotalIncVat: round(lineTotalIncVat, 2),
+        totalLandedCost: round(totalLandedCost, 4),
+        gmPercent: round(gmPercent, 4),
         freightAmount: round(freightAmount, 4),
         dutyAmount: round(dutyAmount, 4),
-        handlingAmount: 0, // Not used in new formula
-        landedCost: round(landedCost, 4),
-        markupPercent: round(marginPercent, 4),
+        handlingAmount: round(handlingAmount, 4),
+        markupPercent: round(markupPercent, 4),
         markupAmount: round(markupAmount, 4),
-        unitSellExVat: round(unitSellExVat, 4),
-        lineTotalExVat: round(lineTotalExVat, 2),
-        vatAmount: round(vatAmount, 2),
-        lineTotalIncVat: round(lineTotalIncVat, 2),
     };
 };
 
@@ -95,19 +105,19 @@ export const calculateQuoteTotals = (lines) => {
     }
 
     const totalLandedCost = lines.reduce((sum, line) =>
-        sum + (line.landedCost * line.quantity), 0);
+        sum + (line.landedCost * (line.quantity || 1)), 0);
 
-    const totalMarkup = lines.reduce((sum, line) =>
-        sum + (line.markupAmount * line.quantity), 0);
+    const totalMarkupAmount = lines.reduce((sum, line) =>
+        sum + (line.markupAmount * (line.quantity || 1)), 0);
 
     const totalSellingExVat = lines.reduce((sum, line) =>
-        sum + line.lineTotalExVat, 0);
+        sum + (line.lineTotalExVat || 0), 0);
 
     const totalVat = lines.reduce((sum, line) =>
-        sum + line.vatAmount, 0);
+        sum + (line.lineTotalVat || line.vatAmount || 0), 0);
 
     const totalSellingIncVat = lines.reduce((sum, line) =>
-        sum + line.lineTotalIncVat, 0);
+        sum + (line.lineTotalIncVat || 0), 0);
 
     const overallGmPercent = totalSellingExVat > 0
         ? (totalSellingExVat - totalLandedCost) / totalSellingExVat
@@ -115,7 +125,7 @@ export const calculateQuoteTotals = (lines) => {
 
     return {
         totalLandedCost: round(totalLandedCost, 2),
-        totalMarkup: round(totalMarkup, 2),
+        totalMarkup: round(totalMarkupAmount, 2),
         totalSellingExVat: round(totalSellingExVat, 2),
         totalVat: round(totalVat, 2),
         totalSellingIncVat: round(totalSellingIncVat, 2),

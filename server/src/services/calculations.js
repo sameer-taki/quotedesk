@@ -48,50 +48,70 @@ export const calculateLine = (line, vatRate = 0.125) => {
         throw new Error('Quantity must be at least 1');
     }
 
-    // Step 1: Convert to base currency (FJD)
-    const unitCostFjd = buyPrice * effectiveExchangeRate;
+    // 1. Unit Cost (FJD)
+    // Formula: Buy Price * (1 / FX Rate)
+    // We treat exchangeRate as "Foreign per 1 FJD" (e.g. 0.45 USD/FJD)
+    const divisor = (!effectiveExchangeRate || effectiveExchangeRate <= 0) ? 1 : effectiveExchangeRate;
+    const unitCostFjd = buyPrice * (1 / divisor);
 
-    // Step 2: Calculate shipping (additive, not multiplicative)
-    const freightAmount = unitCostFjd * freightRate;
+    // 2. Multiplicative Landed Cost
+    // Formula: Unit Cost * (1 + ShipRate) * (1 + DutyRate) * (1 + HandlingRate)
+    const freightRateNorm = freightRate || 0;
+    const dutyRateNorm = dutyRate || 0;
+    const handlingRateNorm = (line.handlingRate !== undefined ? line.handlingRate : 0);
 
-    // Step 3: Calculate duty on (unit + shipping)
-    const dutyAmount = (unitCostFjd + freightAmount) * dutyRate;
+    const landedCost = unitCostFjd *
+        (1 + freightRateNorm) *
+        (1 + dutyRateNorm) *
+        (1 + handlingRateNorm);
 
-    // Step 4: Landed Cost = Unit + Ship + Duty
-    const landedCost = unitCostFjd + freightAmount + dutyAmount;
-
-    // Determine margin percentage (this is gross margin, not markup)
-    const marginPercent = overrideMarkupPercent !== null && overrideMarkupPercent !== undefined
+    // 3. Markup-based Selling Price
+    // Formula: Landed Cost * (1 + Markup%)
+    const markupPercent = overrideMarkupPercent !== null && overrideMarkupPercent !== undefined
         ? overrideMarkupPercent
-        : targetMarkupPercent;
+        : (targetMarkupPercent || 0);
 
-    // Step 5: Sell Ex VAT = Landed / (1 - GM%)
-    // This gives margin on selling price, not markup on cost
-    // Prevent division by zero if margin is 100%
-    const effectiveMargin = marginPercent >= 1 ? 0.99 : marginPercent;
-    const unitSellExVat = landedCost / (1 - effectiveMargin);
+    const unitSellExVat = landedCost * (1 + markupPercent);
 
-    // Calculate markup amount for reporting
+    // 4. VAT and Totals
+    const unitVat = unitSellExVat * vatRate;
+    const unitSellIncVat = unitSellExVat + unitVat;
+
+    const lineTotalExVat = unitSellExVat * quantity;
+    const lineTotalVat = unitVat * quantity;
+    const lineTotalIncVat = unitSellIncVat * quantity;
+    const totalLandedCost = landedCost * quantity;
+
+    // Gross Margin % (for reporting/smart approvals)
+    // Formula: (Sell - Landed) / Sell
+    const marginAmount = unitSellExVat - landedCost;
+    const gmPercent = unitSellExVat > 0 ? marginAmount / unitSellExVat : 0;
+
+    // Derived amounts for backward compatibility and UI display
+    // Note: These are "implied" amounts in the multiplicative model
+    const freightAmount = unitCostFjd * freightRateNorm;
+    const dutyAmount = (unitCostFjd * (1 + freightRateNorm)) * dutyRateNorm;
+    const handlingAmount = (unitCostFjd * (1 + freightRateNorm) * (1 + dutyRateNorm)) * handlingRateNorm;
     const markupAmount = unitSellExVat - landedCost;
 
-    // Step 6: Line totals
-    const lineTotalExVat = unitSellExVat * quantity;
-
-    // Step 7: VAT calculation
-    const vatAmount = lineTotalExVat * vatRate;
-    const lineTotalIncVat = lineTotalExVat + vatAmount;
-
     return {
+        unitCostFjd: round(unitCostFjd, 4),
+        landedCost: round(landedCost, 4),
+        unitSellExVat: round(unitSellExVat, 4),
+        unitVat: round(unitVat, 4),
+        unitSellIncVat: round(unitSellIncVat, 4),
+        lineTotalExVat: round(lineTotalExVat, 2),
+        vatAmount: round(lineTotalVat, 2), // Aliased for client compat
+        lineTotalVat: round(lineTotalVat, 2),
+        lineTotalIncVat: round(lineTotalIncVat, 2),
+        totalLandedCost: round(totalLandedCost, 4),
+        gmPercent: round(gmPercent, 4),
+        // Intermediate amounts
         freightAmount: round(freightAmount, 4),
         dutyAmount: round(dutyAmount, 4),
-        handlingAmount: 0, // Not used in new formula
-        landedCost: round(landedCost, 4),
-        markupPercent: round(marginPercent, 4),
-        markupAmount: round(markupAmount, 4),
-        unitSellExVat: round(unitSellExVat, 4),
-        lineTotalExVat: round(lineTotalExVat, 2),
-        vatAmount: round(vatAmount, 2),
-        lineTotalIncVat: round(lineTotalIncVat, 2),
+        handlingAmount: round(handlingAmount, 4),
+        markupPercent: round(markupPercent, 4),
+        markupAmount: round(markupAmount, 4)
     };
 };
 
