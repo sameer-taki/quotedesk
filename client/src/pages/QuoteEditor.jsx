@@ -37,6 +37,7 @@ import {
 import { Stepper, Step, StepLabel, Dialog, DialogTitle, DialogContent, DialogActions, Collapse } from '@mui/material';
 import WinProbabilityCard from '../components/intelligence/WinProbabilityCard';
 import SmartBundleCarousel from '../components/intelligence/SmartBundleCarousel';
+import ExcelImportButton from '../components/quotes/ExcelImportButton';
 import { analyzeQuote } from '../services/quoteService';
 
 const QuoteEditor = () => {
@@ -236,6 +237,34 @@ const QuoteEditor = () => {
         setLines([...lines, { ...newLine, ...calcs }]);
     };
 
+    const handleImportSuccess = (parsedLines) => {
+        const vatRate = parseFloat(settings.vat_rate) || 0.125;
+        const defaultFx = fxRates.find(r => r.currency === 'NZD');
+
+        const newLines = parsedLines.map((line, idx) => {
+            const baseLine = {
+                id: `import-${Date.now()}-${idx}`,
+                description: line.description,
+                partNumber: line.partNumber,
+                supplierId: '',
+                categoryId: '',
+                quantity: line.quantity || 1,
+                buyPrice: line.buyPrice || 0,
+                currency: line.currency || 'NZD',
+                freightRate: 0.05,
+                exchangeRate: line.exchangeRate || defaultFx?.rateToBase || 1.39,
+                dutyRate: 0.05,
+                handlingRate: 0.02,
+                targetMarkupPercent: 0.25,
+                overrideMarkupPercent: null,
+            };
+            const calcs = calculateLine(baseLine, vatRate);
+            return { ...baseLine, ...calcs };
+        });
+
+        setLines([...lines, ...newLines]);
+    };
+
     const handleWizardSubmit = () => {
         const vatRate = parseFloat(settings.vat_rate) || 0.125;
         const supplier = suppliers.find(s => s.id === wizardData.supplierId);
@@ -359,6 +388,10 @@ const QuoteEditor = () => {
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
+                    <ExcelImportButton
+                        onImportSuccess={handleImportSuccess}
+                        onImportError={(msg) => setError(msg)}
+                    />
                     <Button
                         variant="outlined"
                         startIcon={<WizardIcon />}

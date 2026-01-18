@@ -1,10 +1,35 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
 import quoteController from '../controllers/quoteController.js';
 import exportController from '../controllers/exportController.js';
 import { validate } from '../middleware/validate.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Multer configuration
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'data/uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, `import-${Date.now()}${path.extname(file.originalname)}`);
+    }
+});
+
+const upload = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ext === '.xlsx' || ext === '.xls' || ext === '.csv') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only Excel or CSV files are allowed'));
+        }
+    },
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // Public portal routes (No authentication required)
 router.get('/public/:publicId', quoteController.getPublicQuote);
@@ -15,6 +40,13 @@ router.use(authenticate);
 
 // List quotes (all authenticated users)
 router.get('/', quoteController.listQuotes);
+
+// Parse Excel file (creator, admin)
+router.post('/parse-excel',
+    authorize('creator', 'admin'),
+    upload.single('file'),
+    quoteController.parseExcel
+);
 
 // Get single quote
 router.get('/:id', quoteController.getQuote);

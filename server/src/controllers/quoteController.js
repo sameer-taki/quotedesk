@@ -7,7 +7,10 @@ import { createAuditLog } from '../middleware/audit.js';
 import { asyncHandler } from '../middleware/validate.js';
 import intelligenceService from '../services/intelligenceService.js';
 import workflowService from '../services/workflowService.js';
+import excelService from '../services/excelService.js';
 import config from '../config/env.js';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Validation rules
@@ -905,6 +908,42 @@ export const generatePO = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * Parse Excel quote file
+ * POST /api/quotes/parse-excel
+ */
+export const parseExcel = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({
+            success: false,
+            message: 'No file uploaded',
+        });
+    }
+
+    try {
+        const filePath = req.file.path;
+        const lines = await excelService.parseSupplierExcel(filePath);
+
+        // Delete the temporary file
+        fs.unlinkSync(filePath);
+
+        res.json({
+            success: true,
+            data: lines,
+        });
+    } catch (error) {
+        // Clean up on error
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+
+        res.status(500).json({
+            success: false,
+            message: 'Error parsing Excel file: ' + error.message,
+        });
+    }
+});
+
 export default {
     listQuotes,
     getQuote,
@@ -924,4 +963,5 @@ export default {
     createQuoteValidation,
     updateQuoteValidation,
     lineValidation,
+    parseExcel
 };
