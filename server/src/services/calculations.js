@@ -38,8 +38,9 @@ export const calculateLine = (line, vatRate = 0.125) => {
     } = line;
 
     // Validate inputs
-    if (!buyPrice || buyPrice < 0) {
-        throw new Error('Buy price must be a positive number');
+    // Allow 0 buy price for accessories/free items
+    if (buyPrice === undefined || buyPrice === null || buyPrice < 0) {
+        throw new Error('Buy price must be a non-negative number');
     }
     // If exchange rate is 0 or not set, treat as 1 (no conversion)
     const effectiveExchangeRate = (!exchangeRate || exchangeRate <= 0) ? 1 : exchangeRate;

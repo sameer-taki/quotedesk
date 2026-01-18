@@ -25,7 +25,7 @@ export const calculateLine = (line, vatRate = 0.125) => {
         overrideMarkupPercent = null,
     } = line;
 
-    if (!buyPrice) {
+    if (buyPrice === undefined || buyPrice === null || buyPrice < 0) {
         return null;
     }
 
