@@ -136,8 +136,40 @@ export const sendInvitationEmail = async (user, setupLink) => {
   return sendMail({ to: user.email, subject, html, text });
 };
 
+/**
+ * Send email notification when quote needs approval
+ */
+export const sendApprovalRequestEmail = async (quote, creator, approvers) => {
+  const subject = `Approval Required: Quote ${quote.quoteNumber}`;
+  const gmPercent = (parseFloat(quote.overallGmPercent) * 100).toFixed(2);
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1a202c;">
+        <h2 style="color: #d69e2e;">⏳ Approval Required</h2>
+        <p>A quote requires your approval:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Quote Number:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${quote.quoteNumber}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Client:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${quote.clientName}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Created By:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${creator.name}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Total:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">FJD ${parseFloat(quote.totalSellingIncVat).toFixed(2)}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>Gross Margin:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e2e8f0; color: ${parseFloat(quote.overallGmPercent) < 0.1 ? '#c53030' : '#2f855a'};">${gmPercent}%</td></tr>
+        </table>
+        <p>Please log in to Quote Desk to review and approve or reject this quote.</p>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="font-size: 12px; color: #718096;">This is an automated notification from Quote Desk.</p>
+    </div>`;
+
+  // Send to all approvers
+  const results = [];
+  for (const approver of approvers) {
+    const result = await sendMail({ to: approver.email, subject, html });
+    results.push({ email: approver.email, success: result });
+  }
+  return results;
+};
+
 export default {
   sendQuoteApprovedEmail,
   sendQuoteRejectedEmail,
-  sendInvitationEmail
+  sendInvitationEmail,
+  sendApprovalRequestEmail
 };

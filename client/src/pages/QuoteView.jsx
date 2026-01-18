@@ -156,8 +156,10 @@ const QuoteView = () => {
     if (!quote) return <Alert severity="error">Quote not found</Alert>;
 
     const canEdit = canCreateQuotes && quote.status === 'draft';
-    const canSubmit = canCreateQuotes && quote.status === 'draft' && quote.lines?.length > 0;
+    const canEditRejected = canCreateQuotes && quote.status === 'rejected';
+    const canSubmit = canCreateQuotes && ['draft', 'rejected'].includes(quote.status) && quote.lines?.length > 0;
     const canApprove = canApproveQuotes && quote.status === 'pending';
+    const canAmend = canCreateQuotes && ['approved', 'accepted'].includes(quote.status);
 
     return (
         <Box>
@@ -198,6 +200,25 @@ const QuoteView = () => {
                     {canEdit && (
                         <Button variant="outlined" startIcon={<EditIcon />} onClick={() => navigate(`/quotes/${id}/edit`)}>
                             Edit
+                        </Button>
+                    )}
+                    {canEditRejected && (
+                        <Button
+                            variant="outlined"
+                            color="warning"
+                            startIcon={<EditIcon />}
+                            onClick={() => navigate(`/quotes/${id}/edit`)}
+                        >
+                            Edit & Resubmit
+                        </Button>
+                    )}
+                    {canAmend && (
+                        <Button
+                            variant="outlined"
+                            startIcon={<EditIcon />}
+                            onClick={() => navigate(`/quotes/${id}/amend`)}
+                        >
+                            Create Amendment
                         </Button>
                     )}
                     {canSubmit && (

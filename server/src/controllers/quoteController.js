@@ -295,11 +295,11 @@ export const updateQuote = asyncHandler(async (req, res) => {
         });
     }
 
-    // Only draft quotes can be edited
-    if (quote.status !== 'draft' && req.user.role !== 'admin') {
+    // Only draft and rejected quotes can be edited (rejected = Edit & Resubmit flow)
+    if (!['draft', 'rejected'].includes(quote.status) && req.user.role !== 'admin') {
         return res.status(400).json({
             success: false,
-            message: 'Only draft quotes can be edited',
+            message: 'Only draft or rejected quotes can be edited',
         });
     }
 
@@ -416,12 +416,15 @@ export const deleteQuote = asyncHandler(async (req, res) => {
 });
 
 /**
- * Submit quote for approval
+ * Submit quote for approval (works for draft and rejected quotes)
  * POST /api/quotes/:id/submit
  */
 export const submitQuote = asyncHandler(async (req, res) => {
     const quote = await Quote.findByPk(req.params.id, {
-        include: [{ model: QuoteLine, as: 'lines' }],
+        include: [
+            { model: QuoteLine, as: 'lines' },
+            { model: User, as: 'creator', attributes: ['id', 'name', 'email'] },
+        ],
     });
 
     if (!quote) {
@@ -431,10 +434,11 @@ export const submitQuote = asyncHandler(async (req, res) => {
         });
     }
 
-    if (quote.status !== 'draft') {
+    // Allow submitting draft or rejected quotes (Edit & Resubmit flow)
+    if (!['draft', 'rejected'].includes(quote.status)) {
         return res.status(400).json({
             success: false,
-            message: 'Only draft quotes can be submitted',
+            message: 'Only draft or rejected quotes can be submitted',
         });
     }
 
@@ -452,7 +456,20 @@ export const submitQuote = asyncHandler(async (req, res) => {
     const approvalCheck = checkApprovalRequired(quote.overallGmPercent, { lowGmThreshold: floor });
 
     if (approvalCheck.requiresApproval) {
-        await quote.update({ status: 'pending' });
+        await quote.update({ status: 'pending', approverComments: null });
+
+        // Send email to all admins
+        const admins = await User.findAll({
+            where: { role: 'admin', isActive: true },
+            attributes: ['id', 'name', 'email'],
+        });
+
+        if (admins.length > 0 && quote.creator) {
+            // Fire and forget - don't block the response
+            import('../services/email.js').then(emailService => {
+                emailService.sendApprovalRequestEmail(quote, quote.creator, admins);
+            }).catch(err => console.error('Failed to send approval emails:', err));
+        }
     } else {
         // Smart Approval: Margin is good enough to auto-approve
         await quote.update({
@@ -466,13 +483,14 @@ export const submitQuote = asyncHandler(async (req, res) => {
     await createAuditLog(req.user.id, 'submit', 'quote', quote.id, {
         requiresApproval: approvalCheck.requiresApproval,
         gmPercent: quote.overallGmPercent,
-        autoApproved: !approvalCheck.requiresApproval
+        autoApproved: !approvalCheck.requiresApproval,
+        wasRejected: quote.status === 'rejected'
     }, req);
 
     res.json({
         success: true,
         data: {
-            status: quote.status,
+            status: approvalCheck.requiresApproval ? 'pending' : 'approved',
             requiresApproval: approvalCheck.requiresApproval,
             autoApproved: !approvalCheck.requiresApproval,
             ...approvalCheck,
