@@ -1,6 +1,14 @@
 /**
  * Quote Line Calculation Utilities
  * Matches server-side calculations exactly
+ * 
+ * Formulas from "QuoteForge Test 2.0.xlsx":
+ * Unit Cost (FJD) = BuyPrice × FxRate
+ * Ship Cost = Unit Cost (FJD) × ShipRate
+ * Duty = (Unit Cost + Ship Cost) × DutyRate
+ * Landed Cost = Unit Cost (FJD) + Ship Cost + Duty
+ * Sell Ex VAT = Landed Cost / (1 - GM%)
+ * Line Total = Sell Inc VAT × Quantity
  */
 
 /**
@@ -12,7 +20,6 @@ export const calculateLine = (line, vatRate = 0.125) => {
         freightRate = 0,
         exchangeRate,
         dutyRate = 0,
-        handlingRate = 0,
         quantity = 1,
         targetMarkupPercent = 0.25,
         overrideMarkupPercent = null,
@@ -25,34 +32,44 @@ export const calculateLine = (line, vatRate = 0.125) => {
     // If exchange rate is 0 or not set, treat as 1 (no conversion)
     const effectiveExchangeRate = (!exchangeRate || exchangeRate <= 0) ? 1 : exchangeRate;
 
-    // Calculate landed cost
-    const freightMultiplier = 1 + freightRate;
-    const fxMultiplier = effectiveExchangeRate;
-    const dutyMultiplier = 1 + dutyRate;
-    const handlingMultiplier = 1 + handlingRate;
+    // Step 1: Convert to base currency (FJD)
+    const unitCostFjd = buyPrice * effectiveExchangeRate;
 
-    const freightAmount = buyPrice * freightRate;
-    const landedCost = buyPrice * freightMultiplier * fxMultiplier * dutyMultiplier * handlingMultiplier;
-    const dutyAmount = buyPrice * fxMultiplier * dutyRate;
-    const handlingAmount = buyPrice * fxMultiplier * handlingRate;
+    // Step 2: Calculate shipping (additive)
+    const freightAmount = unitCostFjd * freightRate;
 
-    // Determine markup
-    const markupPercent = overrideMarkupPercent !== null && overrideMarkupPercent !== undefined
+    // Step 3: Calculate duty on (unit + shipping)
+    const dutyAmount = (unitCostFjd + freightAmount) * dutyRate;
+
+    // Step 4: Landed Cost = Unit + Ship + Duty
+    const landedCost = unitCostFjd + freightAmount + dutyAmount;
+
+    // Determine margin percentage (this is gross margin, not markup)
+    const marginPercent = overrideMarkupPercent !== null && overrideMarkupPercent !== undefined
         ? overrideMarkupPercent
         : targetMarkupPercent;
 
-    const markupAmount = landedCost * markupPercent;
-    const unitSellExVat = landedCost + markupAmount;
+    // Step 5: Sell Ex VAT = Landed / (1 - GM%)
+    // Prevent division by zero if margin is 100%
+    const effectiveMargin = marginPercent >= 1 ? 0.99 : marginPercent;
+    const unitSellExVat = landedCost / (1 - effectiveMargin);
+
+    // Calculate markup amount for reporting
+    const markupAmount = unitSellExVat - landedCost;
+
+    // Step 6: Line totals
     const lineTotalExVat = unitSellExVat * quantity;
+
+    // Step 7: VAT calculation
     const vatAmount = lineTotalExVat * vatRate;
     const lineTotalIncVat = lineTotalExVat + vatAmount;
 
     return {
         freightAmount: round(freightAmount, 4),
         dutyAmount: round(dutyAmount, 4),
-        handlingAmount: round(handlingAmount, 4),
+        handlingAmount: 0, // Not used in new formula
         landedCost: round(landedCost, 4),
-        markupPercent: round(markupPercent, 4),
+        markupPercent: round(marginPercent, 4),
         markupAmount: round(markupAmount, 4),
         unitSellExVat: round(unitSellExVat, 4),
         lineTotalExVat: round(lineTotalExVat, 2),
